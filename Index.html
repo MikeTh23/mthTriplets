@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Triplets</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 12px;
+      gap: 14px;
+      min-height: 100vh;
+    }
+
+    header { text-align: center; }
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 300;
+      letter-spacing: 10px;
+      text-transform: uppercase;
+      color: #7dd3fc;
+    }
+    .subtitle {
+      font-size: 0.68rem;
+      color: #334155;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    #controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+    }
+
+    select, button {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 7px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      outline: none;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    select:hover, button:hover { background: #273449; border-color: #4a6080; }
+
+    #btn-new {
+      background: #1d4ed8;
+      border-color: #3b82f6;
+      color: #fff;
+      font-weight: 700;
+      padding: 7px 20px;
+    }
+    #btn-new:hover { background: #2563eb; }
+
+    #info {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .pcard {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 13px;
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    .pcard.active-p0 { border-color: #38bdf8; box-shadow: 0 0 8px rgba(56,189,248,0.3); }
+    .pcard.active-p1 { border-color: #fb923c; box-shadow: 0 0 8px rgba(251,146,60,0.3); }
+
+    .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .pcard .goal-label { color: #334155; font-size: 11px; }
+
+    #status {
+      font-size: 14px;
+      color: #64748b;
+      min-height: 20px;
+      text-align: center;
+      font-style: italic;
+      transition: color 0.2s;
+    }
+    #status.alert { color: #fbbf24; font-style: normal; font-weight: 700; font-size: 16px; }
+
+    svg#board {
+      display: block;
+      width: min(544px, calc(100vw - 24px));
+      height: auto;
+      touch-action: manipulation;
+    }
+
+    @media (max-width: 580px) {
+      body { padding: 12px 8px; gap: 10px; }
+      h1   { font-size: 1.3rem; letter-spacing: 6px; }
+      select, button { font-size: 12px; padding: 6px 9px; }
+      #controls { gap: 6px; }
+      #info { gap: 8px; }
+      .pcard { padding: 5px 10px; font-size: 12px; }
+      .pcard .goal-label { display: none; }
+      #status { font-size: 13px; }
+      .legend { gap: 10px; font-size: 10px; }
+    }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      font-size: 11px;
+      color: #475569;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .li { display: flex; align-items: center; gap: 5px; }
+    .lb { width: 13px; height: 13px; border-radius: 2px; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Triplets</h1>
+  <p class="subtitle">Gioco di Strategia &mdash; 2 Giocatori</p>
+</header>
+
+<div id="controls">
+  <select id="sMode">
+    <option value="human-ai">vs Intelligenza Artificiale</option>
+    <option value="human-human">vs Giocatore Umano</option>
+    <option value="ai-ai">IA vs IA (Demo)</option>
+  </select>
+  <select id="sDiff">
+    <option value="easy">Facile</option>
+    <option value="medium" selected>Medio</option>
+    <option value="hard">Difficile</option>
+  </select>
+  <select id="sHuman">
+    <option value="0">Gioco come P1 (↗)</option>
+    <option value="1">Gioco come P2 (↖)</option>
+  </select>
+  <button id="btn-new">&#9654; Nuova Partita</button>
+</div>
+
+<div id="info">
+  <div class="pcard" id="card0">
+    <div class="dot" style="background:#38bdf8"></div>
+    <span>Giocatore 1</span>
+    <span class="goal-label">(7,0)&rarr;(0,7)</span>
+  </div>
+  <div class="pcard" id="card1">
+    <div class="dot" style="background:#fb923c"></div>
+    <span>Giocatore 2</span>
+    <span class="goal-label">(7,7)&rarr;(0,0)</span>
+  </div>
+</div>
+
+<div id="status">Premi &ldquo;Nuova Partita&rdquo; per iniziare</div>
+
+<svg id="board" viewBox="0 0 544 544" width="544" height="544"></svg>
+
+<div class="legend">
+  <div class="li">
+    <svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="rgba(56,189,248,0.18)" stroke="#38bdf8" stroke-width="2"/></svg>
+    <span>Pedina P1 (cerchio)</span>
+  </div>
+  <div class="li">
+    <svg width="14" height="14"><rect x="2" y="2" width="10" height="10" fill="rgba(251,146,60,0.18)" stroke="#fb923c" stroke-width="2" rx="1"/></svg>
+    <span>Pedina P2 (quadrato)</span>
+  </div>
+  <div class="li">
+    <div class="lb" style="background:#0c2244;border:1px solid #38bdf8"></div>
+    <span>Caselle P1</span>
+  </div>
+  <div class="li">
+    <div class="lb" style="background:#3a1200;border:1px solid #fb923c"></div>
+    <span>Caselle P2</span>
+  </div>
+  <div class="li">
+    <div class="lb" style="background:#2a2d35"></div>
+    <span>Casella bloccata</span>
+  </div>
+  <div class="li">
+    <div class="lb" style="background:rgba(34,197,94,0.25);border:1px solid #22c55e"></div>
+    <span>Mossa valida</span>
+  </div>
+  <div class="li">
+    <div class="lb" style="background:rgba(234,179,8,0.2);border:1px solid #ca8a04"></div>
+    <span>Tassello riferimento avversario</span>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ================================================================
+// DIRECTIONS
+// ================================================================
+const DIRS = ['N','NE','E','SE','S','SW','W','NW'];
+
+const DVEC = {
+  N:  [-1,  0], NE: [-1,  1], E:  [ 0,  1], SE: [ 1,  1],
+  S:  [ 1,  0], SW: [ 1, -1], W:  [ 0, -1], NW: [-1, -1]
+};
+
+// SVG drawing angle in radians (0 = East/right, y-axis points down)
+const DRAD = {
+  N:  -Math.PI / 2,
+  NE: -Math.PI / 4,
+  E:   0,
+  SE:  Math.PI / 4,
+  S:   Math.PI / 2,
+  SW:  3 * Math.PI / 4,
+  W:   Math.PI,
+  NW: -3 * Math.PI / 4
+};
+
+// ================================================================
+// BOARD GEOMETRY
+// ================================================================
+const BSIZE = 8;
+const CELL  = 64;   // pixels per cell
+const PAD   = 8;    // outer padding
+const SVGSZ = PAD * 2 + BSIZE * CELL; // 544
+
+// Player 1: (7,0) → (0,7)   [bottom-left → top-right]
+// Player 2: (7,7) → (0,0)   [bottom-right → top-left]
+const P_START = [[7, 0], [7, 7]];
+const P_GOAL  = [[0, 7], [0, 0]];
+const P_COL   = ['#38bdf8', '#fb923c'];  // player colours
+
+function isCenter(r, c) { return (r === 3 || r === 4) && (c === 3 || c === 4); }
+function isCorner(r, c) { return (r === 0 || r === 7) && (c === 0 || c === 7); }
+function inBounds(r, c) { return r >= 0 && r < BSIZE && c >= 0 && c < BSIZE; }
+function isPassable(r, c){ return inBounds(r, c) && !isCenter(r, c); }
+
+// Returns {p:0|1, role:'start'|'goal'} for a corner, or null
+function cornerInfo(r, c) {
+  if (r === 7 && c === 0) return { p: 0, role: 'start' };
+  if (r === 0 && c === 7) return { p: 0, role: 'goal'  };
+  if (r === 7 && c === 7) return { p: 1, role: 'start' };
+  if (r === 0 && c === 0) return { p: 1, role: 'goal'  };
+  return null;
+}
+
+// ================================================================
+// TILE GENERATION  –  C(8,3) = 56 tiles
+// ================================================================
+function genAllTiles() {
+  const t = [];
+  for (let i = 0; i < 8; i++)
+    for (let j = i + 1; j < 8; j++)
+      for (let k = j + 1; k < 8; k++)
+        t.push([DIRS[i], DIRS[j], DIRS[k]]);
+  return t; // exactly 56
+}
+
+function shuffle(a) {
+  const b = [...a];
+  for (let i = b.length - 1; i > 0; i--) {
+    const j = 0 | (Math.random() * (i + 1));
+    [b[i], b[j]] = [b[j], b[i]];
+  }
+  return b;
+}
+
+// ================================================================
+// BOARD STATE
+// ================================================================
+let board = null; // board[r][c] = ['N','E','SW'] or null
+
+function initBoard() {
+  const tiles = shuffle(genAllTiles());
+  board = Array.from({ length: BSIZE }, () => Array(BSIZE).fill(null));
+  let t = 0;
+  for (let r = 0; r < BSIZE; r++)
+    for (let c = 0; c < BSIZE; c++)
+      if (!isCenter(r, c) && !isCorner(r, c))
+        board[r][c] = tiles[t++];
+}
+
+// ================================================================
+// GAME LOGIC
+// ================================================================
+
+// state = { pos:[[r,c],[r,c]], turn:0|1, firstMove:bool, skips:int, over:bool, winner:null|0|1 }
+function mkState() {
+  return {
+    pos:       [[7, 0], [7, 7]],
+    turn:      0,
+    firstMove: true,  // P1's very first move is free
+    skips:     0,     // consecutive skips (resets on any actual move)
+    over:      false,
+    winner:    null
+  };
+}
+
+// Returns the tile at (r,c), or null if none (corner/center/out-of-bounds)
+function getTile(r, c) {
+  if (!board || !isPassable(r, c) || isCorner(r, c)) return null;
+  return board[r][c];
+}
+
+// All passable adjacent squares from pos
+function freeAdj([r, c]) {
+  const m = [];
+  for (const d of DIRS) {
+    const [dr, dc] = DVEC[d];
+    const nr = r + dr, nc = c + dc;
+    if (isPassable(nr, nc)) m.push([nr, nc]);
+  }
+  return m;
+}
+
+// Valid moves for player pi given game state st
+function getMoves(pi, st) {
+  // Special rule: P1's very first move of the game is free
+  if (st.firstMove && pi === 0) return freeAdj(st.pos[0]);
+
+  // Normal rule: directions come from opponent's tile
+  const opp  = st.pos[1 - pi];
+  const tile = getTile(opp[0], opp[1]);
+
+  // If opponent is on a corner (no tile) → free movement
+  if (!tile) return freeAdj(st.pos[pi]);
+
+  const m = [];
+  for (const d of tile) {
+    const [dr, dc] = DVEC[d];
+    const nr = st.pos[pi][0] + dr, nc = st.pos[pi][1] + dc;
+    if (isPassable(nr, nc)) m.push([nr, nc]);
+  }
+  return m;
+}
+
+function doMove(st, pi, [nr, nc]) {
+  const n = {
+    pos:       st.pos.map(p => [...p]),
+    turn:      1 - pi,
+    firstMove: false,
+    skips:     0,
+    over:      false,
+    winner:    null
+  };
+  n.pos[pi] = [nr, nc];
+  if (nr === P_GOAL[pi][0] && nc === P_GOAL[pi][1]) {
+    n.over   = true;
+    n.winner = pi;
+  }
+  return n;
+}
+
+function doSkip(st, pi) {
+  return {
+    pos:       st.pos.map(p => [...p]),
+    turn:      1 - pi,
+    firstMove: st.firstMove,
+    skips:     st.skips + 1,
+    over:      false,
+    winner:    null
+  };
+}
+
+// ================================================================
+// AI — MINIMAX WITH ALPHA-BETA PRUNING
+// ================================================================
+
+function cheb([r1, c1], [r2, c2]) {
+  return Math.max(Math.abs(r1 - r2), Math.abs(c1 - c2));
+}
+
+// Positive values favour P1, negative favour P2
+function evalSt(st) {
+  if (st.over) return st.winner === 0 ? 9999 : -9999;
+  return cheb(st.pos[1], P_GOAL[1]) - cheb(st.pos[0], P_GOAL[0]);
+}
+
+// Classic minimax: P1 maximises, P2 minimises
+function minimax(st, depth, α, β) {
+  if (st.over)   return evalSt(st);
+  if (depth <= 0) return evalSt(st);
+
+  const pi = st.turn;
+  let moves;
+
+  if (st.skips >= 2) {
+    // Both players were stuck → free move for current player
+    moves = freeAdj(st.pos[pi]);
+  } else {
+    moves = getMoves(pi, st);
+  }
+
+  if (moves.length === 0) {
+    // No valid moves → skip (reduce depth to prevent infinite recursion)
+    if (st.skips >= 2) return evalSt(st);
+    return minimax(doSkip(st, pi), depth - 1, α, β);
+  }
+
+  // Move ordering: try moves closer to own goal first (better α-β pruning)
+  moves.sort((a, b) => cheb(a, P_GOAL[pi]) - cheb(b, P_GOAL[pi]));
+
+  if (pi === 0) {
+    let best = -Infinity;
+    for (const mv of moves) {
+      const score = minimax(doMove(st, pi, mv), depth - 1, α, β);
+      if (score > best) best = score;
+      if (best > α)     α    = best;
+      if (α >= β) break;
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    for (const mv of moves) {
+      const score = minimax(doMove(st, pi, mv), depth - 1, α, β);
+      if (score < best) best = score;
+      if (best < β)     β    = best;
+      if (α >= β) break;
+    }
+    return best;
+  }
+}
+
+function aiPick(st, diff) {
+  const pi = st.turn;
+  let moves;
+
+  if (st.skips >= 2) {
+    moves = freeAdj(st.pos[pi]);
+  } else {
+    moves = getMoves(pi, st);
+  }
+
+  if (!moves.length) return null;
+  if (moves.length === 1) return moves[0];
+
+  // Easy: random
+  if (diff === 'easy') {
+    return moves[0 | (Math.random() * moves.length)];
+  }
+
+  // Medium: greedy (minimise own distance to goal)
+  const goal = P_GOAL[pi];
+  if (diff === 'medium') {
+    return moves.reduce((best, m) =>
+      cheb(m, goal) < cheb(best, goal) ? m : best
+    );
+  }
+
+  // Hard: minimax depth 6
+  const depth = 6;
+  let bestScore = pi === 0 ? -Infinity : Infinity;
+  let bestMove  = moves[0];
+
+  for (const mv of moves) {
+    const score = minimax(doMove(st, pi, mv), depth - 1, -Infinity, Infinity);
+    if (pi === 0 && score > bestScore) { bestScore = score; bestMove = mv; }
+    if (pi === 1 && score < bestScore) { bestScore = score; bestMove = mv; }
+  }
+  return bestMove;
+}
+
+// ================================================================
+// SETTINGS & RUNTIME STATE
+// ================================================================
+let settings = { mode: 'human-ai', diff: 'medium', human: 0 };
+let game = null;
+let currentValidMoves = [];
+let aiTimer = null;
+
+// ================================================================
+// SVG HELPERS
+// ================================================================
+const svgEl = document.getElementById('board');
+
+function mk(tag, attrs) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [k, v] of Object.entries(attrs))
+    el.setAttribute(k, String(v));
+  return el;
+}
+
+// ================================================================
+// SVG RENDERING
+// ================================================================
+const cellBg  = {};  // "r,c" → rect element (clickable background)
+const cellAG  = {};  // "r,c" → g element (arrows)
+const playerEl= [null, null]; // player circle elements
+const labelEl = [null, null]; // player label text elements
+let   hlEls   = [];  // temporary highlight elements
+
+function cellBaseFill(r, c) {
+  if (isCenter(r, c)) return '#2a2d35';
+  const ci = cornerInfo(r, c);
+  if (ci) {
+    if (ci.p === 0) return ci.role === 'start' ? '#0c2244' : '#0d2a55';
+    return ci.role === 'start' ? '#3a1200' : '#4a1a00';
+  }
+  return '#0d1f35';
+}
+
+function buildSVG() {
+  svgEl.innerHTML = '';
+  hlEls = [];
+  currentValidMoves = [];
+
+  // Outer background
+  svgEl.appendChild(mk('rect', {
+    x: 0, y: 0, width: SVGSZ, height: SVGSZ, fill: '#060e1a', rx: 6
+  }));
+
+  // Cells
+  for (let r = 0; r < BSIZE; r++) {
+    for (let c = 0; c < BSIZE; c++) {
+      const x = PAD + c * CELL, y = PAD + r * CELL;
+
+      const bg = mk('rect', {
+        x: x + 1, y: y + 1,
+        width: CELL - 2, height: CELL - 2,
+        fill: cellBaseFill(r, c), rx: 3,
+        'data-r': r, 'data-c': c
+      });
+      svgEl.appendChild(bg);
+      cellBg[`${r},${c}`] = bg;
+
+      const ag = mk('g', {});
+      svgEl.appendChild(ag);
+      cellAG[`${r},${c}`] = ag;
+
+      // Corner labels
+      if (isCorner(r, c)) {
+        const ci = cornerInfo(r, c);
+        const cx = PAD + c * CELL + CELL / 2;
+        const cy = PAD + r * CELL + CELL / 2;
+        const col = P_COL[ci.p];
+
+        const lbl = mk('text', {
+          x: cx, y: cy + 5,
+          'text-anchor': 'middle',
+          fill: '#cbd5e1',
+          'font-size': 10,
+          'font-weight': '600',
+          'letter-spacing': '1',
+          'pointer-events': 'none'
+        });
+        lbl.textContent = ci.role === 'start' ? 'START' : 'GOAL';
+        svgEl.appendChild(lbl);
+      }
+
+    }
+  }
+
+  // Grid lines
+  for (let i = 0; i <= BSIZE; i++) {
+    svgEl.appendChild(mk('line', {
+      x1: PAD + i * CELL, y1: PAD,
+      x2: PAD + i * CELL, y2: PAD + BSIZE * CELL,
+      stroke: '#1a2a3a', 'stroke-width': 1
+    }));
+    svgEl.appendChild(mk('line', {
+      x1: PAD,              y1: PAD + i * CELL,
+      x2: PAD + BSIZE * CELL, y2: PAD + i * CELL,
+      stroke: '#1a2a3a', 'stroke-width': 1
+    }));
+  }
+
+  // Player pieces — transparent so the tile arrows beneath remain visible.
+  // P1 = circle (cerchio), P2 = square (quadrato), as in the original game.
+  for (let p = 0; p < 2; p++) {
+    const r = CELL * 0.36; // half-size / radius
+    let shape;
+    if (p === 0) {
+      // Circle
+      shape = mk('circle', {
+        r: r,
+        fill: P_COL[p],
+        'fill-opacity': 0.18,
+        stroke: P_COL[p],
+        'stroke-width': 2.5,
+        'pointer-events': 'none'
+      });
+    } else {
+      // Square (rect — cx/cy set later via x,y)
+      shape = mk('rect', {
+        width:  r * 2, height: r * 2,
+        fill:   P_COL[p],
+        'fill-opacity': 0.18,
+        stroke: P_COL[p],
+        'stroke-width': 2.5,
+        rx: 3,
+        'pointer-events': 'none'
+      });
+    }
+    svgEl.appendChild(shape);
+    playerEl[p] = shape;
+
+    const lt = mk('text', {
+      'text-anchor': 'middle',
+      'dominant-baseline': 'middle',
+      fill: P_COL[p],
+      'font-size': 10,
+      'font-weight': 'bold',
+      'pointer-events': 'none'
+    });
+    lt.textContent = p === 0 ? 'P1' : 'P2';
+    svgEl.appendChild(lt);
+    labelEl[p] = lt;
+  }
+
+  svgEl.addEventListener('click', onSVGClick);
+}
+
+function drawSingleArrow(g, cx, cy, dir, col) {
+  const rad = DRAD[dir];
+  const len  = CELL * 0.42;  // total arrow length from centre
+  const hl   = 9;             // arrowhead length
+  const hw   = 5.5;           // arrowhead half-width
+
+  const cos  = Math.cos(rad), sin  = Math.sin(rad);
+  const pcos = Math.cos(rad + Math.PI / 2), psin = Math.sin(rad + Math.PI / 2);
+
+  const tx = cx + cos * len, ty = cy + sin * len;        // tip
+  const bx = tx - cos * hl,  by = ty - sin * hl;         // head base
+  const w1x = bx + pcos * hw, w1y = by + psin * hw;
+  const w2x = bx - pcos * hw, w2y = by - psin * hw;
+  const sx  = cx + cos * 5,  sy  = cy + sin * 5;         // shaft start
+
+  g.appendChild(mk('line', {
+    x1: sx, y1: sy, x2: bx, y2: by,
+    stroke: col, 'stroke-width': 1.5, 'stroke-linecap': 'round'
+  }));
+  g.appendChild(mk('polygon', {
+    points: `${tx},${ty} ${w1x},${w1y} ${w2x},${w2y}`,
+    fill: col
+  }));
+}
+
+function renderArrows() {
+  if (!board) return;
+  for (let r = 0; r < BSIZE; r++) {
+    for (let c = 0; c < BSIZE; c++) {
+      const ag = cellAG[`${r},${c}`];
+      ag.innerHTML = '';
+      if (isCenter(r, c) || isCorner(r, c)) continue;
+      const tile = board[r][c];
+      if (!tile) continue;
+
+      const cx = PAD + c * CELL + CELL / 2;
+      const cy = PAD + r * CELL + CELL / 2;
+
+      // Centre origin dot
+      ag.appendChild(mk('circle', {
+        cx, cy, r: 2, fill: '#2a4060', 'pointer-events': 'none'
+      }));
+
+      for (const d of tile) drawSingleArrow(ag, cx, cy, d, '#4a6a8a');
+    }
+  }
+}
+
+function updatePlayers() {
+  if (!game) return;
+  const sameCell = game.pos[0][0] === game.pos[1][0] &&
+                   game.pos[0][1] === game.pos[1][1];
+
+  for (let p = 0; p < 2; p++) {
+    const [r, c] = game.pos[p];
+    const cx = PAD + c * CELL + CELL / 2;
+    const cy = PAD + r * CELL + CELL / 2;
+    // If both on same cell, offset diagonally so both pieces are visible
+    const off = sameCell ? 10 : 0;
+    const ox = p === 0 ? -off : off;
+    const oy = p === 0 ? -off : off;
+
+    const activeStroke = game.turn === p ? 3 : 1.5;
+
+    if (p === 0) {
+      // Circle: position via cx/cy
+      playerEl[p].setAttribute('cx', cx + ox);
+      playerEl[p].setAttribute('cy', cy + oy);
+    } else {
+      // Rect (square): position via x/y (top-left corner)
+      const half = parseFloat(playerEl[p].getAttribute('width')) / 2;
+      playerEl[p].setAttribute('x', cx + ox - half);
+      playerEl[p].setAttribute('y', cy + oy - half);
+    }
+
+    labelEl[p].setAttribute('x', cx + ox);
+    labelEl[p].setAttribute('y', cy + oy);
+
+    // Active player gets a slightly thicker border
+    playerEl[p].setAttribute('stroke-width', activeStroke);
+  }
+}
+
+function clearHighlights() {
+  for (const el of hlEls) el.remove();
+  hlEls = [];
+  currentValidMoves = [];
+  // Reset all cell cursors
+  for (const bg of Object.values(cellBg)) bg.style.cursor = 'default';
+}
+
+// oppPos: the opponent's cell to show as "reference tile" (yellow border)
+// moves:  list of [r,c] valid destinations (green overlay)
+function showHighlights(moves, oppPos) {
+  clearHighlights();
+  currentValidMoves = moves;
+
+  // Opponent reference tile highlight (yellow)
+  if (oppPos && !isCorner(oppPos[0], oppPos[1])) {
+    const [or, oc] = oppPos;
+    const el = mk('rect', {
+      x: PAD + oc * CELL + 1,
+      y: PAD + or * CELL + 1,
+      width:  CELL - 2,
+      height: CELL - 2,
+      fill:   'rgba(234,179,8,0.15)',
+      stroke: '#ca8a04',
+      'stroke-width': 2,
+      rx: 3,
+      'pointer-events': 'none'
+    });
+    svgEl.insertBefore(el, playerEl[0]);
+    hlEls.push(el);
+  }
+
+  // Valid move overlays (green)
+  for (const [r, c] of moves) {
+    const el = mk('rect', {
+      x: PAD + c * CELL + 1,
+      y: PAD + r * CELL + 1,
+      width:  CELL - 2,
+      height: CELL - 2,
+      fill:   'rgba(34,197,94,0.2)',
+      stroke: '#22c55e',
+      'stroke-width': 2,
+      rx: 3,
+      'pointer-events': 'none'
+    });
+    svgEl.insertBefore(el, playerEl[0]);
+    hlEls.push(el);
+    cellBg[`${r},${c}`].style.cursor = 'pointer';
+  }
+}
+
+function setActiveCards(turn) {
+  const c0 = document.getElementById('card0');
+  const c1 = document.getElementById('card1');
+  c0.className = 'pcard' + (turn === 0 ? ' active-p0' : '');
+  c1.className = 'pcard' + (turn === 1 ? ' active-p1' : '');
+}
+
+function setStatus(msg, alert = false) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className   = alert ? 'alert' : '';
+}
+
+// ================================================================
+// CLICK HANDLER
+// ================================================================
+function onSVGClick(e) {
+  if (!game || game.over) return;
+  if (!isHumanTurn()) return;
+
+  const rect = svgEl.getBoundingClientRect();
+  const c = Math.floor((e.clientX - rect.left  - PAD) / CELL);
+  const r = Math.floor((e.clientY - rect.top   - PAD) / CELL);
+
+  if (r < 0 || r >= BSIZE || c < 0 || c >= BSIZE) return;
+  const match = currentValidMoves.find(([mr, mc]) => mr === r && mc === c);
+  if (!match) return;
+
+  doTurn(game.turn, match);
+}
+
+// ================================================================
+// GAME FLOW
+// ================================================================
+function isHumanTurn() {
+  if (!game || game.over) return false;
+  if (settings.mode === 'human-human') return true;
+  if (settings.mode === 'ai-ai')       return false;
+  return game.turn === settings.human;
+}
+
+function doTurn(pi, pos) {
+  game = doMove(game, pi, pos);
+  clearHighlights();
+  updatePlayers();
+  setActiveCards(game.turn);
+
+  if (game.over) {
+    renderArrows(); // redraw so arrows are visible under player
+    setStatus(`🏆 Giocatore ${game.winner + 1} ha vinto!`, true);
+    return;
+  }
+
+  scheduleTurn();
+}
+
+function scheduleTurn() {
+  clearTimeout(aiTimer);
+  aiTimer = setTimeout(processTurn, 80);
+}
+
+function processTurn() {
+  if (!game || game.over) return;
+
+  const pi        = game.turn;
+  const freeMove  = game.skips >= 2;
+  const moves     = freeMove ? freeAdj(game.pos[pi]) : getMoves(pi, game);
+  const pname     = `Giocatore ${pi + 1}`;
+  const oppPos    = game.pos[1 - pi];
+
+  // No moves available → skip
+  if (moves.length === 0 && !freeMove) {
+    setStatus(`${pname} non ha mosse disponibili — turno saltato`);
+    game = doSkip(game, pi);
+    setActiveCards(game.turn);
+    clearHighlights();
+    updatePlayers();
+    const skipDelay = isHumanTurn() ? 1000 : 700;
+    aiTimer = setTimeout(processTurn, skipDelay);
+    return;
+  }
+
+  // Extreme edge case: completely stuck even with free move
+  if (moves.length === 0) {
+    setStatus('Situazione di stallo totale — nessuna mossa possibile');
+    return;
+  }
+
+  const refPos = freeMove ? null : oppPos;
+
+  if (isHumanTurn()) {
+    const extra = freeMove ? ' (mossa libera — entrambi bloccati)' : '';
+    setStatus(`${pname} — scegli dove muoverti${extra}`);
+    showHighlights(moves, refPos);
+  } else {
+    setStatus(`${pname} sta pensando…`);
+    showHighlights(moves, refPos); // show options briefly even for AI
+
+    const delay = { easy: 400, medium: 650, hard: 950 }[settings.diff];
+    aiTimer = setTimeout(() => {
+      const mv = aiPick(game, settings.diff);
+      clearHighlights();
+      if (mv) {
+        doTurn(pi, mv);
+      } else {
+        game = doSkip(game, pi);
+        setActiveCards(game.turn);
+        updatePlayers();
+        scheduleTurn();
+      }
+    }, delay);
+  }
+}
+
+// ================================================================
+// NEW GAME
+// ================================================================
+function newGame() {
+  clearTimeout(aiTimer);
+  clearHighlights();
+
+  settings.mode  = document.getElementById('sMode').value;
+  settings.diff  = document.getElementById('sDiff').value;
+  settings.human = +document.getElementById('sHuman').value;
+
+  initBoard();
+  game = mkState();
+
+  buildSVG();
+  renderArrows();
+  updatePlayers();
+  setActiveCards(0);
+  setStatus('Partita iniziata!');
+
+  scheduleTurn();
+}
+
+// ================================================================
+// UI WIRING
+// ================================================================
+document.getElementById('sMode').addEventListener('change', function () {
+  const isVsAI    = this.value === 'human-ai';
+  const isHH      = this.value === 'human-human';
+  document.getElementById('sHuman').style.display = isVsAI ? '' : 'none';
+  document.getElementById('sDiff').style.display  = isHH   ? 'none' : '';
+});
+
+document.getElementById('btn-new').addEventListener('click', newGame);
+
+// Show empty board on load
+buildSVG();
+</script>
+</body>
+</html>
