@@ -259,12 +259,43 @@ function cornerInfo(r, c) {
 // TILE GENERATION  –  C(8,3) = 56 tiles
 // ================================================================
 function genAllTiles() {
-  const t = [];
-  for (let i = 0; i < 8; i++)
-    for (let j = i + 1; j < 8; j++)
-      for (let k = j + 1; k < 8; k++)
-        t.push([DIRS[i], DIRS[j], DIRS[k]]);
-  return t; // exactly 56
+  // Build the 14 rotationally-unique base patterns.
+  // 90° CW rotation: direction index d → (d+2) % 8
+  // Canonical representative = lex-min of the 4 rotations of a combo.
+  const seen = new Set();
+  const basePatterns = [];
+
+  for (let i = 0; i < 8; i++) {
+    for (let j = i + 1; j < 8; j++) {
+      for (let k = j + 1; k < 8; k++) {
+        const keys = [];
+        for (let r = 0; r < 4; r++) {
+          const rot = [i, j, k].map(d => (d + r * 2) % 8).sort((a, b) => a - b);
+          keys.push(rot.join(','));
+        }
+        const canonical = keys.reduce((a, b) => a < b ? a : b);
+        if (!seen.has(canonical)) {
+          seen.add(canonical);
+          basePatterns.push([i, j, k]); // one representative per group
+        }
+      }
+    }
+  }
+  // basePatterns.length === 14
+
+  // Each pattern gets exactly 4 physical copies.
+  // Each copy is rotated independently at random (like rotating a wooden tile
+  // before placing it on the board): all 4 could end up the same, or all different.
+  const allTiles = [];
+  for (const base of basePatterns) {
+    for (let copy = 0; copy < 4; copy++) {
+      const r = 0 | (Math.random() * 4);           // random rotation: 0,1,2,3
+      const rotated = base.map(d => (d + r * 2) % 8).sort((a, b) => a - b);
+      allTiles.push(rotated.map(d => DIRS[d]));
+    }
+  }
+
+  return allTiles; // exactly 56: 14 groups × 4 independently-rotated copies
 }
 
 function shuffle(a) {
@@ -776,8 +807,12 @@ function onSVGClick(e) {
   if (!isHumanTurn()) return;
 
   const rect = svgEl.getBoundingClientRect();
-  const c = Math.floor((e.clientX - rect.left  - PAD) / CELL);
-  const r = Math.floor((e.clientY - rect.top   - PAD) / CELL);
+  // Convert screen coordinates → SVG viewBox coordinates to handle
+  // CSS scaling on mobile (rendered size ≠ viewBox size).
+  const svgX = (e.clientX - rect.left)  / rect.width  * SVGSZ;
+  const svgY = (e.clientY - rect.top)   / rect.height * SVGSZ;
+  const c = Math.floor((svgX - PAD) / CELL);
+  const r = Math.floor((svgY - PAD) / CELL);
 
   if (r < 0 || r >= BSIZE || c < 0 || c >= BSIZE) return;
   const match = currentValidMoves.find(([mr, mc]) => mr === r && mc === c);
